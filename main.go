@@ -13,6 +13,15 @@ import (
 	"github.com/rs/cors"
 )
 
+type Env struct {
+	PORT        string
+	DB_HOST     string
+	DB_USER     string
+	DB_PORT     string
+	DB_NAME     string
+	DB_PASSWORD string
+}
+
 type Driver struct {
 	gorm.Model
 	Name    string
@@ -67,10 +76,39 @@ var (
 	}
 )
 
+func setEnv() Env {
+	PORT := os.Getenv("PORT")
+	DB_HOST := os.Getenv("DB_HOST")
+	DB_USER := os.Getenv("DB_USER")
+	DB_PORT := os.Getenv("DB_PORT")
+	DB_NAME := os.Getenv("DB_NAME")
+	DB_PASSWORD := os.Getenv("DB_PASSWORD")
+
+	if PORT == "" {
+		PORT = "8080"
+	}
+	if DB_HOST == "" {
+		DB_HOST = "localhost"
+	}
+	if DB_USER == "" {
+		DB_USER = "postgres"
+	}
+	if DB_PORT == "" {
+		DB_PORT = "5432"
+	}
+	if DB_NAME == "" {
+		DB_NAME = "postgres"
+	}
+	if DB_PASSWORD == "" {
+		DB_PASSWORD = "postgres"
+	}
+	return Env{PORT, DB_HOST, DB_USER, DB_PORT, DB_NAME, DB_PASSWORD}
+}
+
 func main() {
 	router := mux.NewRouter()
-
-	db, err = gorm.Open("postgres", "host=localhost port=5432 user=ardhihdra dbname=postgres sslmode=disable password=postgres")
+	ENV := setEnv()
+	db, err = gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s", ENV.DB_HOST, ENV.DB_PORT, ENV.DB_USER, ENV.DB_NAME, ENV.DB_PASSWORD))
 	if err != nil {
 		fmt.Println(err)
 		panic("failed to connect database")
@@ -86,14 +124,9 @@ func main() {
 	router.HandleFunc("/order", NewOrder).Methods("POST")
 
 	handler := cors.Default().Handler(router)
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
 	fmt.Println("Up and Running...")
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), handler))
-
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", ENV.PORT), handler))
 }
 
 func InitDB() {
@@ -141,7 +174,7 @@ func GetCars(res http.ResponseWriter, req *http.Request) {
 func GetCar(res http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	var car Car
-	db.First(&cars, params["id"])
+	db.First(&car, "id=?", params["id"])
 	json.NewEncoder(res).Encode(&car)
 }
 
